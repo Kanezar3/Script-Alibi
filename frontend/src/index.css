@@ -11,6 +11,8 @@
     font-family: var(--font-sans);
     background-color: #F6F2EA;
     color: #141518;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   h1, h2, h3, .font-editorial {
@@ -19,6 +21,12 @@
 
   code, pre, .font-ledger-mono {
     font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  :focus-visible {
+    outline: 2px solid #C89D42;
+    outline-offset: 2px;
   }
 }
 
@@ -29,18 +37,24 @@
   padding-top: 2px;
 }
 
+/* Archival brass accent rule */
+.folio-rule-brass {
+  border-top: 1px solid rgba(200, 157, 66, 0.35);
+}
+
 /* Studio clearance stamp */
 .studio-stamp {
   border: 1.5px solid currentColor;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+  line-height: 1.2;
 }
 
 /* Verbatim quote highlight inside archival literary snippet */
 mark.evidence-highlight {
   background-color: #F4E0A3;
   color: #141518;
-  padding: 0.08rem 0.25rem;
+  padding: 0.06rem 0.22rem;
   border-bottom: 2px solid #9C6615;
   border-radius: 2px;
   font-weight: 600;
@@ -49,7 +63,7 @@ mark.evidence-highlight {
 mark.evidence-highlight-contradict {
   background-color: #F8D7D7;
   color: #5C1114;
-  padding: 0.08rem 0.25rem;
+  padding: 0.06rem 0.22rem;
   border-bottom: 2px solid #9B2226;
   border-radius: 2px;
   font-weight: 600;

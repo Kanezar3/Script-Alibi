@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { BookOpen, Activity, Wallet, ExternalLink, Scale } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ExternalLink, RefreshCw, Scale } from 'lucide-react';
 import rawProofJson from './data/proof.json';
 import {
   buildExplorerAddressUrl,
@@ -22,7 +22,8 @@ import {
   upsertTrackedTransaction,
   type TrackedTransaction,
 } from './lib/txTracker';
-import type { LiveReadSnapshot } from './types/scriptAlibi';
+import { truncateMiddle } from './lib/validation';
+import type { LiveReadSnapshot, ProtocolStats } from './types/scriptAlibi';
 import { ProofInspector } from './components/ProofInspector';
 import { LiveWalletConsole } from './components/LiveWalletConsole';
 import { TxLifecycleMonitor } from './components/TxLifecycleMonitor';
@@ -53,6 +54,7 @@ export function App() {
   );
   const [isPollingTxs, setIsPollingTxs] = useState(false);
   const [appealingHash, setAppealingHash] = useState<string | null>(null);
+  const didAutoVerifyRef = useRef(false);
 
   const handleVerifyLive = useCallback(async () => {
     if (!effectiveContract) return;
@@ -76,6 +78,15 @@ export function App() {
       setIsVerifyingLive(false);
     }
   }, [effectiveContract, proof, walletAddress]);
+
+  // Once-per-mount automatic StudioNet RPC verification
+  useEffect(() => {
+    if (didAutoVerifyRef.current) return;
+    if (!proof.isPlaceholder && effectiveContract) {
+      didAutoVerifyRef.current = true;
+      void handleVerifyLive();
+    }
+  }, [proof.isPlaceholder, effectiveContract, handleVerifyLive]);
 
   // Listen for MetaMask account/network changes
   useEffect(() => {
@@ -166,6 +177,32 @@ export function App() {
     setTrackedTxs(next);
   };
 
+  const handleLoadRecordedTxs = (
+    items: { hash: string; action: string; label: string }[]
+  ) => {
+    const existing = loadTrackedTransactions();
+    const existingHashes = new Set(existing.map((t) => t.hash.toLowerCase()));
+    const toAdd = items.filter((item) => !existingHashes.has(item.hash.toLowerCase()));
+    if (toAdd.length === 0) return;
+
+    const now = Date.now();
+    const newEntries: TrackedTransaction[] = toAdd.map((item) => ({
+      hash: item.hash,
+      action: item.action,
+      label: item.label,
+      createdAt: now,
+      updatedAt: now,
+      stage: 'submitted',
+      appealWindow: 'not-reached',
+      contractAddress: effectiveContract,
+    }));
+
+    const merged = [...newEntries, ...existing].slice(0, 40);
+    saveTrackedTransactions(merged);
+    setTrackedTxs(merged);
+    void pollActiveTransactions();
+  };
+
   const handleConnectWallet = async () => {
     setActionError(null);
     setActionNotice(null);
@@ -232,7 +269,7 @@ export function App() {
       });
       trackNewTx(txHash, functionName, label);
       setActionNotice(
-        `Submitted ${functionName} (${txHash.slice(0, 14)}...). Polling consensus lifecycle in Lifecycle Monitor.`
+        `Submitted ${functionName} (${txHash.slice(0, 14)}...). Polling consensus lifecycle in Consensus Telemetry.`
       );
     } catch (err) {
       setActionError(err instanceof Error ? err.message : String(err));
@@ -276,88 +313,138 @@ export function App() {
 
   const activeTxCount = trackedTxs.filter((t) => !isTerminalLifecycleStage(t.stage)).length;
 
+  const txCasesCount = proof.cases.filter((c) => Boolean(c.txHash)).length;
+  const verifiedCount = proof.cases.filter(
+    (c) => c.txHash && liveSnapshot?.txVerifications[c.txHash]?.matchesRecordedFinality
+  ).length;
+
+  const recordedStats = (proof.rawProof?.protocol_stats ?? null) as ProtocolStats | null;
+  const displayStats = liveSnapshot?.stats ?? recordedStats;
+  const poolsCount = displayStats?.total_pools ?? liveSnapshot?.pools.length ?? 0;
+  const claimsCount = displayStats?.total_claims ?? liveSnapshot?.claims.length ?? 0;
+  const vagueCount = displayStats?.total_vague_rejections ?? 0;
+
+  const rpcDotClass = isVerifyingLive
+    ? 'bg-[#D4AF37] animate-pulse'
+    : liveSnapshot?.error
+      ? 'bg-[#D9534F]'
+      : liveSnapshot
+        ? 'bg-[#3FB97A]'
+        : 'bg-[#8E897F]';
+
+  const rpcStatusText = isVerifyingLive
+    ? 'VERIFYING RPC'
+    : liveSnapshot?.error
+      ? 'RPC ERROR'
+      : liveSnapshot
+        ? 'LIVE SYNCED'
+        : 'RECORDED';
+
   return (
     <div className="min-h-screen bg-[#F6F2EA] text-[#141518] flex flex-col">
-      {/* Studio Masthead */}
-      <header className="border-b border-[#141518] bg-[#FDFBF7]">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 py-5">
-          <div className="flex flex-wrap items-center justify-between gap-3 text-[11px] font-ledger-mono uppercase tracking-widest text-[#57544D] pb-3 border-b border-[#DED7C8]">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 font-semibold text-[#141518]">
-                <Scale className="h-3.5 w-3.5 text-[#8C6D2E]" />
-                SCRIPT ALIBI · STUDIO CLEARANCE LEDGER
+      {/* Obsidian Ink Masthead & Live Telemetry Command Bar */}
+      <header className="bg-[#111215] text-[#F6F2EA] border-b border-[#2C2D33]">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          {/* Top Edition & Live Telemetry Command Strip */}
+          <div className="flex flex-wrap items-center justify-between gap-3 py-2.5 border-b border-[#26282E] font-ledger-mono text-[10px] uppercase tracking-widest">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <span className="inline-flex items-center gap-1.5 font-semibold text-[#D4AF37]">
+                <Scale className="h-3.5 w-3.5 text-[#C89D42]" />
+                SCRIPT ALIBI // FOLIO N° {proof.chainId} · GENLAYER STUDIONET
               </span>
-              <span>·</span>
-              <span>GENLAYER STUDIONET (CHAIN {proof.chainId})</span>
             </div>
-            <div className="flex flex-wrap items-center gap-3">
-              {proof.contractAddress ? (
+
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+              <span className="inline-flex items-center gap-1.5 text-[#D5CFC2]">
+                <span className={`h-1.5 w-1.5 rounded-full ${rpcDotClass}`} />
+                <span>{rpcStatusText}</span>
+              </span>
+
+              {effectiveContract ? (
                 <a
-                  href={buildExplorerAddressUrl(proof.contractAddress, proof.explorerBaseUrl)}
+                  href={buildExplorerAddressUrl(effectiveContract, proof.explorerBaseUrl)}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center gap-1 text-[#1F4E78] hover:underline"
+                  className="inline-flex items-center gap-1 text-[#C89D42] hover:text-[#E7C675] hover:underline"
                 >
-                  Contract: {proof.contractAddress.slice(0, 10)}...{proof.contractAddress.slice(-6)}
-                  <ExternalLink className="h-3 w-3" />
+                  Contract {truncateMiddle(effectiveContract, 6, 4)}
+                  <ExternalLink className="h-2.5 w-2.5" />
                 </a>
               ) : (
-                <span className="text-[#9C6615]">Awaiting StudioNet Contract Address</span>
+                <span className="text-[#C89D42]">Awaiting Contract</span>
               )}
+
+              <span className="text-[#A8A397]">{proof.cases.length} Finalized Exhibits</span>
+
+              {liveSnapshot && !liveSnapshot.error && (
+                <span className="text-[#3FB97A]">
+                  {verifiedCount}/{txCasesCount} RPC Match
+                </span>
+              )}
+
+              <span className="text-[#A8A397]">
+                Pools {poolsCount} · Claims {claimsCount} · Vague {vagueCount}
+              </span>
+
+              <button
+                type="button"
+                onClick={() => void handleVerifyLive()}
+                disabled={isVerifyingLive || !effectiveContract}
+                className="inline-flex items-center gap-1.5 rounded-[2px] border border-[#C89D42]/60 bg-[#1B1D22] px-2.5 py-1 text-[10px] font-semibold text-[#F6F2EA] hover:border-[#D4AF37] hover:bg-[#252830] disabled:opacity-50 cursor-pointer"
+              >
+                <RefreshCw className={`h-3 w-3 text-[#D4AF37] ${isVerifyingLive ? 'animate-spin' : ''}`} />
+                {isVerifyingLive ? 'Verifying...' : 'Verify Live StudioNet'}
+              </button>
             </div>
           </div>
 
-          <div className="pt-4 flex flex-wrap items-end justify-between gap-4">
-            <div className="max-w-2xl">
-              <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-[#141518]">
-                Script Alibi Literary Archive
+          {/* Masthead Title & Architectural Section Tabs */}
+          <div className="py-4 flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-[#F6F2EA]">
+                Script Alibi Archival Clearance Folio
               </h1>
-              <p className="mt-1.5 text-sm text-[#57544D] leading-relaxed">
-                Public-domain script clearance &amp; plot-alibi oracle. Validators verify verbatim
-                passages against commit-pinned literary editions; deterministic Python governs every
-                bounty, stake, and refund.
+              <p className="mt-1 text-xs text-[#B6B0A4]">
+                Public-domain script clearance &amp; plot-alibi oracle — &ldquo;The model judges;
+                plain Python moves money.&rdquo;
               </p>
             </div>
 
-            {/* Navigation Tabs */}
-            <nav className="flex flex-wrap gap-1.5">
+            <nav className="flex flex-wrap gap-1.5" aria-label="Primary Sections">
               <button
                 type="button"
                 onClick={() => setActiveTab('proof')}
-                className={`inline-flex items-center gap-1.5 rounded-sm border px-3.5 py-2 text-xs font-semibold tracking-wide cursor-pointer ${
+                className={`rounded-[2px] border px-3.5 py-2 font-ledger-mono text-[11px] font-semibold tracking-wider uppercase cursor-pointer transition-colors ${
                   activeTab === 'proof'
-                    ? 'border-[#141518] bg-[#141518] text-[#FDFBF7]'
-                    : 'border-[#CFC7B5] bg-[#FAF7F0] text-[#141518] hover:bg-[#EFEAE0]'
+                    ? 'border-[#D4AF37] bg-[#F6F2EA] text-[#111215]'
+                    : 'border-[#2E3038] bg-[#181A1F] text-[#D5CFC2] hover:border-[#C89D42]/60 hover:text-[#F6F2EA]'
                 }`}
               >
-                <BookOpen className="h-3.5 w-3.5" />
-                Proof Inspector
+                § 01 Dossier &amp; Proof
               </button>
               <button
                 type="button"
                 onClick={() => setActiveTab('console')}
-                className={`inline-flex items-center gap-1.5 rounded-sm border px-3.5 py-2 text-xs font-semibold tracking-wide cursor-pointer ${
+                className={`rounded-[2px] border px-3.5 py-2 font-ledger-mono text-[11px] font-semibold tracking-wider uppercase cursor-pointer transition-colors ${
                   activeTab === 'console'
-                    ? 'border-[#141518] bg-[#141518] text-[#FDFBF7]'
-                    : 'border-[#CFC7B5] bg-[#FAF7F0] text-[#141518] hover:bg-[#EFEAE0]'
+                    ? 'border-[#D4AF37] bg-[#F6F2EA] text-[#111215]'
+                    : 'border-[#2E3038] bg-[#181A1F] text-[#D5CFC2] hover:border-[#C89D42]/60 hover:text-[#F6F2EA]'
                 }`}
               >
-                <Wallet className="h-3.5 w-3.5" />
-                Live Ledger &amp; Wallet
+                § 02 Clearance Desk &amp; Wallet
               </button>
               <button
                 type="button"
                 onClick={() => setActiveTab('lifecycle')}
-                className={`inline-flex items-center gap-1.5 rounded-sm border px-3.5 py-2 text-xs font-semibold tracking-wide cursor-pointer ${
+                className={`inline-flex items-center gap-1.5 rounded-[2px] border px-3.5 py-2 font-ledger-mono text-[11px] font-semibold tracking-wider uppercase cursor-pointer transition-colors ${
                   activeTab === 'lifecycle'
-                    ? 'border-[#141518] bg-[#141518] text-[#FDFBF7]'
-                    : 'border-[#CFC7B5] bg-[#FAF7F0] text-[#141518] hover:bg-[#EFEAE0]'
+                    ? 'border-[#D4AF37] bg-[#F6F2EA] text-[#111215]'
+                    : 'border-[#2E3038] bg-[#181A1F] text-[#D5CFC2] hover:border-[#C89D42]/60 hover:text-[#F6F2EA]'
                 }`}
               >
-                <Activity className="h-3.5 w-3.5" />
-                Tx Lifecycle
+                <span>§ 03 Consensus Telemetry</span>
                 {activeTxCount > 0 && (
-                  <span className="ml-1 rounded-full bg-[#B58D3D] px-1.5 py-0.2 text-[10px] text-white font-ledger-mono">
+                  <span className="rounded-[2px] bg-[#C89D42] px-1.5 py-0.5 text-[10px] text-[#111215]">
                     {activeTxCount}
                   </span>
                 )}
@@ -367,8 +454,8 @@ export function App() {
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 sm:px-6 py-7">
+      {/* Main Content on Archival Paper */}
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 sm:px-6 py-6">
         {activeTab === 'proof' && (
           <ProofInspector
             proof={proof}
@@ -447,6 +534,7 @@ export function App() {
 
         {activeTab === 'lifecycle' && (
           <TxLifecycleMonitor
+            proof={proof}
             transactions={trackedTxs}
             explorerBaseUrl={proof.explorerBaseUrl}
             isPolling={isPollingTxs}
@@ -456,6 +544,7 @@ export function App() {
               trackNewTx(hash, 'manual_track', label);
               void pollActiveTransactions();
             }}
+            onLoadRecordedTxs={handleLoadRecordedTxs}
             onRemoveTx={(hash) => {
               const filtered = trackedTxs.filter(
                 (t) => t.hash.toLowerCase() !== hash.toLowerCase()
@@ -475,7 +564,7 @@ export function App() {
       </main>
 
       {/* Editorial Footer */}
-      <footer className="border-t border-[#DED7C8] bg-[#FAF7F0] py-4 text-xs text-[#57544D]">
+      <footer className="border-t border-[#DED7C8] bg-[#FAF7F0] py-3.5 text-xs text-[#57544D]">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 flex flex-wrap items-center justify-between gap-2">
           <span>
             Script Alibi · &ldquo;The model judges; plain Python moves money.&rdquo;
