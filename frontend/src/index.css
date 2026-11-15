@@ -1,0 +1,56 @@
+@import "tailwindcss";
+
+@theme {
+  --font-serif: "Newsreader", Georgia, "Times New Roman", serif;
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+@layer base {
+  body {
+    font-family: var(--font-sans);
+    background-color: #F6F2EA;
+    color: #141518;
+  }
+
+  h1, h2, h3, .font-editorial {
+    font-family: var(--font-serif);
+  }
+
+  code, pre, .font-ledger-mono {
+    font-family: var(--font-mono);
+  }
+}
+
+/* Archival hairline double rule */
+.ledger-double-rule {
+  border-top: 2px solid #141518;
+  border-bottom: 1px solid #141518;
+  padding-top: 2px;
+}
+
+/* Studio clearance stamp */
+.studio-stamp {
+  border: 1.5px solid currentColor;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Verbatim quote highlight inside archival literary snippet */
+mark.evidence-highlight {
+  background-color: #F4E0A3;
+  color: #141518;
+  padding: 0.08rem 0.25rem;
+  border-bottom: 2px solid #9C6615;
+  border-radius: 2px;
+  font-weight: 600;
+}
+
+mark.evidence-highlight-contradict {
+  background-color: #F8D7D7;
+  color: #5C1114;
+  padding: 0.08rem 0.25rem;
+  border-bottom: 2px solid #9B2226;
+  border-radius: 2px;
+  font-weight: 600;
+}

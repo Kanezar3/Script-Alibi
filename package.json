@@ -1,0 +1,13 @@
+{
+  "name": "script-alibi",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Script Alibi — Public-Domain Literary Clearance & Plot-Alibi Oracle on GenLayer StudioNet",
+  "scripts": {
+    "dev": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend run build",
+    "preview": "npm --prefix frontend run preview",
+    "test:frontend": "npm --prefix frontend run test",
+    "verify:proof": "python deploy/verify_proof.py"
+  }
+}
