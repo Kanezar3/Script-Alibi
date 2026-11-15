@@ -1,6 +1,8 @@
 {
   "schema_version": "1.0.0",
   "generated_at_utc": "2026-11-14T20:42:45Z",
+  "repository_url": "https://github.com/Kanezar3/Script-Alibi",
+  "source_commit": "410a1f64b929904faed22dd29b6d3319541a3f93",
   "network": {
     "name": "GenLayer StudioNet",
     "rpc_url": "https://studio.genlayer.com/api",

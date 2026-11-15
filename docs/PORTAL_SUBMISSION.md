@@ -29,6 +29,7 @@ Script Alibi is a GenLayer Intelligent Contract and StudioNet web app that prove
 
 ## Contract & Proof Explorer Links
 - **GitHub Repository:** https://github.com/Kanezar3/Script-Alibi
+- **Pinned Contract Source:** https://github.com/Kanezar3/Script-Alibi/blob/410a1f64b929904faed22dd29b6d3319541a3f93/contracts/script_alibi.py
 - **Contract Address:** https://explorer-studio.genlayer.com/address/0x8B5806dfFAfdd9CA429517e60eC37D41b0E2b8A2
 - **Deploy Tx:** https://explorer-studio.genlayer.com/tx/0xa78fa991be3dd08587ea14700320c986de70305fd53bd23f816de4f990b3fe64
 - **Case 1 (TOO_VAGUE):** https://explorer-studio.genlayer.com/tx/0xa68e9ee41930ab52e760a790eebecd057ade7c018e2ad671a0ef29cd30ab0769

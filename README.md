@@ -12,6 +12,7 @@
 | Artifact | Value / Link |
 | --- | --- |
 | **Repository** | [`Kanezar3/Script-Alibi`](https://github.com/Kanezar3/Script-Alibi) |
+| **Pinned Contract Source** | [`contracts/script_alibi.py` @ `410a1f6`](https://github.com/Kanezar3/Script-Alibi/blob/410a1f64b929904faed22dd29b6d3319541a3f93/contracts/script_alibi.py) |
 | **Network** | GenLayer StudioNet (`https://studio.genlayer.com/api`, Chain ID `61999`) |
 | **Contract Address** | [`0x8B5806dfFAfdd9CA429517e60eC37D41b0E2b8A2`](https://explorer-studio.genlayer.com/address/0x8B5806dfFAfdd9CA429517e60eC37D41b0E2b8A2) |
 | **Deploy Tx** | [`0xa78fa991be3dd08587ea14700320c986de70305fd53bd23f816de4f990b3fe64`](https://explorer-studio.genlayer.com/tx/0xa78fa991be3dd08587ea14700320c986de70305fd53bd23f816de4f990b3fe64) |
