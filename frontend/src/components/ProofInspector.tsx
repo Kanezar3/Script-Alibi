@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   CheckCircle2,
   Copy,
+  Download,
   ExternalLink,
   AlertTriangle,
   Columns2,
@@ -23,6 +24,11 @@ import {
 import { mapGenLayerStatusToLifecycle } from '../lib/txTracker';
 import { VerdictBadge, LifecycleBadge } from './VerdictBadge';
 import { AppealWindowPanel } from './AppealWindowPanel';
+import {
+  buildClearanceCertificatePayload,
+  formatClearanceCertificateMarkdown,
+  sanitizeFilenameSlug,
+} from '../lib/clearanceCertificate';
 
 function InlineHashRow({ label, value }: { label: string; value?: string }) {
   const [copied, setCopied] = useState(false);
@@ -177,12 +183,26 @@ function ManuscriptPlate({
   );
 }
 
+function triggerBrowserDownload(filename: string, content: string, mimeType: string) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 function ExhibitCertificate({
   item,
+  proof,
   liveSnapshot,
   explorerBaseUrl,
 }: {
   item: ProofCaseRecord;
+  proof: NormalizedProofBundle;
   liveSnapshot: LiveReadSnapshot | null;
   explorerBaseUrl: string;
 }) {
@@ -256,6 +276,41 @@ function ExhibitCertificate({
           <div className="flex flex-col items-end gap-1.5">
             <VerdictBadge outcome={item.outcome} rawVerdict={item.rawVerdict} />
             <LifecycleBadge stage={effectiveLifecycle.stage} />
+            <div className="mt-1 flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  const payload = buildClearanceCertificatePayload(proof, item);
+                  const md = formatClearanceCertificateMarkdown(payload);
+                  triggerBrowserDownload(
+                    `script-alibi-ex-${String(item.caseNumber).padStart(2, '0')}-${sanitizeFilenameSlug(item.title)}.md`,
+                    md,
+                    'text/markdown;charset=utf-8'
+                  );
+                }}
+                className="inline-flex items-center gap-1 rounded-[2px] border border-[#CFC7B5] bg-white px-2 py-0.5 font-ledger-mono text-[10px] font-semibold text-[#141518] hover:border-[#141518] cursor-pointer"
+                title="Download Chain-of-Title Clearance Certificate (Markdown)"
+              >
+                <Download className="h-3 w-3" />
+                Cert .md
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const payload = buildClearanceCertificatePayload(proof, item);
+                  triggerBrowserDownload(
+                    `script-alibi-ex-${String(item.caseNumber).padStart(2, '0')}-${sanitizeFilenameSlug(item.title)}.json`,
+                    JSON.stringify(payload, null, 2),
+                    'application/json;charset=utf-8'
+                  );
+                }}
+                className="inline-flex items-center gap-1 rounded-[2px] border border-[#CFC7B5] bg-white px-2 py-0.5 font-ledger-mono text-[10px] font-semibold text-[#141518] hover:border-[#141518] cursor-pointer"
+                title="Download Machine-Verifiable Proof Dossier (JSON)"
+              >
+                <Download className="h-3 w-3" />
+                Proof .json
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -707,6 +762,7 @@ export function ProofInspector({
             {activeCase && (
               <ExhibitCertificate
                 item={activeCase}
+                proof={proof}
                 liveSnapshot={liveSnapshot}
                 explorerBaseUrl={proof.explorerBaseUrl}
               />
@@ -720,6 +776,7 @@ export function ProofInspector({
             <ExhibitCertificate
               key={item.caseId}
               item={item}
+              proof={proof}
               liveSnapshot={liveSnapshot}
               explorerBaseUrl={proof.explorerBaseUrl}
             />

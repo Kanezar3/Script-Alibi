@@ -12,6 +12,7 @@ import type { LiveReadSnapshot, NormalizedProofBundle } from '../types/scriptAli
 import { STUDIONET_CHAIN_ID } from '../lib/proofAdapter';
 import { truncateMiddle, validateImmutableEvidenceUrl } from '../lib/validation';
 import { VerdictBadge } from './VerdictBadge';
+import { SourceScoutPanel } from './SourceScoutPanel';
 
 export function formatWeiToGen(weiStr?: string | number | null): string {
   if (weiStr === undefined || weiStr === null || weiStr === '') return '0 GEN';
@@ -395,6 +396,16 @@ export function LiveWalletConsole({
           </div>
         )}
       </div>
+
+      <SourceScoutPanel
+        initialUrl={evidenceUrl}
+        onApplyRange={({ evidenceUrl: nextUrl, startLine: s, endLine: e }) => {
+          setEvidenceUrl(nextUrl);
+          setStartLine(String(s));
+          setEndLine(String(e));
+          setFormError(null);
+        }}
+      />
 
       {/* Write Action Forms: Create Pool + Submit Alibi Claim */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
